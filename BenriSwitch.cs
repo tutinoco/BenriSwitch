@@ -130,19 +130,13 @@ namespace tutinoco
             NetworkEventTarget nwTarget = isGlobal ? NetworkEventTarget.All : NetworkEventTarget.Owner;
             SendCustomNetworkEvent(nwTarget, isON ? nameof(SyncON) : nameof(SyncOFF));
 
-            if (isON && onEventTarget) {
-                if (isGlobal) onEventTarget.SendCustomNetworkEvent((NetworkEventTarget.All), onEventName);
-                else onEventTarget.SendCustomEvent(onEventName);
-            }
-
-            if (!isON && offEventTarget) {
-                if (isGlobal) offEventTarget.SendCustomNetworkEvent((NetworkEventTarget.All), offEventName);
-                else offEventTarget.SendCustomEvent(offEventName);
-            }
-
             foreach (BenriSwitch obj in radioGroups) {
-                if (obj == this ) continue;
-                obj.SendCustomNetworkEvent(nwTarget, nameof(SyncOFF_silent));
+                if ( obj != this && obj.isON ) {
+                    foreach( string e in new string[] {"SyncOFF_event", "SyncOFF_silent"} ) {
+                        if( obj.isGlobal ) obj.SendCustomNetworkEvent(NetworkEventTarget.All, e);
+                        else obj.SendCustomEvent(e);
+                    }
+                }
             }
         }
 
@@ -170,6 +164,7 @@ namespace tutinoco
         public void SyncON()
         {
             SyncON_silent();
+            SyncON_event();
             if (audioSource && onSound) audioSource.PlayOneShot(onSound);
         }
 
@@ -177,10 +172,16 @@ namespace tutinoco
         {
             isON = true;
             UpdateObjects();
-       }
+        }
+
+        public void SyncON_event()
+        {
+            if (onEventTarget) onEventTarget.SendCustomEvent(onEventName);
+        }
 
         public void SyncOFF()
         {
+            SyncOFF_event();
             SyncOFF_silent();
             if (audioSource && offSound) audioSource.PlayOneShot(offSound);
         }
@@ -189,6 +190,11 @@ namespace tutinoco
         {
             isON = false;
             UpdateObjects();
+        }
+
+        public void SyncOFF_event()
+        {
+            if (offEventTarget) offEventTarget.SendCustomEvent(offEventName);
         }
     }
 }
