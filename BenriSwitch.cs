@@ -6,8 +6,18 @@ using VRC.Udon.Common.Interfaces;
 
 namespace tutinoco
 {
+    public enum BenriSwitchType
+    {
+        Normal,
+        Trigger,
+        Area,
+    }
+
     public class BenriSwitch : UdonSharpBehaviour
     {
+        [Header("スイッチの種類を設置")]
+        public BenriSwitchType type;
+
         [Header("グローバルスイッチに設定（チェックしないとローカルになります）")]
         public bool isGlobal;
 
@@ -20,13 +30,12 @@ namespace tutinoco
         public AudioClip   offSound;
 
         [Header("押したスイッチが戻る時間を設定（0なら無効、2.0なら2秒後に戻ります）")]
-        public float backTime;
+        public float backTimer;
         public bool isDisabledDuringOn;
-        private int backTimeCount;
+        private int backTimerCount;
         private bool defaultState;
 
-        [Header("握って押すタイプの引き金式スイッチに設定")]
-        public bool isTriggerSwitch;
+        [Header("Triggerタイプのスイッチで指を離した時にOFFにするように設定")]
         public bool isOffWhenReleased;
 
         [Header("ラジオボタンとして利用する場合に他のスイッチを登録")]
@@ -37,7 +46,6 @@ namespace tutinoco
         public GameObject[] disableObjects;
 
         [Header("スイッチON/OFFした瞬間に実行したいイベントを設定")]
-        public bool isOwnerOnly;
         public UdonSharpBehaviour onEventTarget;
         public string onEventName;
         public UdonSharpBehaviour offEventTarget;
@@ -49,21 +57,37 @@ namespace tutinoco
         public GameObject[] doubleObjects;
         private readonly bool isDouble;
 
+        [Header("スイッチのコライダーを他に変更したい場合に設定（またAreaスイッチの範囲を設定）")]
+        public Collider collider;
+
         [Header("スイッチを操作できる人を登録（空なら誰でも操作できます）")]
         public string[] memberships;
+
+        private bool isInArea;
 
         void Start()
         {
             defaultState = isON;
+            if ( !collider ) collider = GetComponent<Collider>();
             UpdateObjects();
             if (radioGroups.Length > 0) isDisabledDuringOn = true;
         }
 
         private void Update()
         {
-            if (backTimeCount >= 0) backTimeCount--;
-            if (backTimeCount == 0) Switch();
-            if (isDisabledDuringOn) GetComponent<Collider>().enabled = !isON;
+            if (backTimerCount >= 0) backTimerCount--;
+            if (backTimerCount == 0) Switch();
+            if (isDisabledDuringOn) collider.enabled = !isON;
+
+            if ( type == BenriSwitchType.Area ) {
+                Vector3 playerPos = Networking.LocalPlayer.GetPosition();
+                bool b = 0.1f > Vector3.Distance(collider.ClosestPoint(playerPos), playerPos);
+                if ( isInArea != b ) {
+                    if ( !isON == b ) Switch();
+                    if ( isON == !b ) Switch();
+                }
+                isInArea = b;
+            }                
         }
 
         private void UpdateObjects()
@@ -80,7 +104,7 @@ namespace tutinoco
 
         public override void Interact()
         {
-            if (isTriggerSwitch) return;
+            if ( type == BenriSwitchType.Trigger ) return;
             Switch();
         }
 
@@ -100,19 +124,19 @@ namespace tutinoco
             }
 
             isON = !isON;
-            backTimeCount = defaultState==isON ? -1 : (int)(backTime * 60);
+            backTimerCount = defaultState==isON ? -1 : (int)(backTimer * 60);
 
             Networking.SetOwner(Networking.LocalPlayer, this.gameObject);
             NetworkEventTarget nwTarget = isGlobal ? NetworkEventTarget.All : NetworkEventTarget.Owner;
             SendCustomNetworkEvent(nwTarget, isON ? nameof(SyncON) : nameof(SyncOFF));
 
             if (isON && onEventTarget) {
-                if (isGlobal) onEventTarget.SendCustomNetworkEvent((isOwnerOnly?NetworkEventTarget.Owner:NetworkEventTarget.All), onEventName);
+                if (isGlobal) onEventTarget.SendCustomNetworkEvent((NetworkEventTarget.All), onEventName);
                 else onEventTarget.SendCustomEvent(onEventName);
             }
 
             if (!isON && offEventTarget) {
-                if (isGlobal) offEventTarget.SendCustomNetworkEvent((isOwnerOnly?NetworkEventTarget.Owner:NetworkEventTarget.All), offEventName);
+                if (isGlobal) offEventTarget.SendCustomNetworkEvent((NetworkEventTarget.All), offEventName);
                 else offEventTarget.SendCustomEvent(offEventName);
             }
 
@@ -124,14 +148,14 @@ namespace tutinoco
 
         public override void OnPickupUseUp()
         {
-            if (!isTriggerSwitch || !isOffWhenReleased) return;
+            if (type!=BenriSwitchType.Trigger || !isOffWhenReleased) return;
             if (audioSource && offSound) audioSource.PlayOneShot(offSound);
             Switch();
         }
 
         public override void OnPickupUseDown()
         {
-            if (!isTriggerSwitch) return;
+            if (type!=BenriSwitchType.Trigger) return;
             if (audioSource && onSound) audioSource.PlayOneShot(onSound);
             Switch();
         }
