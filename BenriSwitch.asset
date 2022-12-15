@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c333ccfdd0cbdbc4ca30cef2dd6e6b9b, type: 3}
   m_Name: BenriSwitch
   m_EditorClassIdentifier: 
-  serializedUdonProgramAsset: {fileID: 11400000, guid: eea13e7faf0ffba489d42d4e5304fe66,
+  serializedUdonProgramAsset: {fileID: 11400000, guid: 1b0d29b4588de8748a90028b18fb9a08,
     type: 2}
   udonAssembly: 
   assemblyError: 
