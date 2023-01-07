@@ -13,6 +13,12 @@ namespace tutinoco
         Area,
     }
 
+    public enum BenriSwitchLinkType
+    {
+        Sync,
+        Radio,
+    }
+
     public class BenriSwitch : UdonSharpBehaviour
     {
         [Header("スイッチの種類を設置")]
@@ -38,8 +44,9 @@ namespace tutinoco
         [Header("Triggerタイプのスイッチで指を離した時にOFFにするように設定")]
         public bool isOffWhenReleased;
 
-        [Header("ラジオボタンとして利用する場合に他のスイッチを登録")]
-        public BenriSwitch[] radioGroups;
+        [Header("他スイッチとリンクして動作させる他のスイッチを登録")]
+        public BenriSwitchLinkType linkType;
+        public BenriSwitch[] links;
 
         [Header("スイッチON/OFF時に有効にするオブジェクトを登録")]
         public GameObject[] activeObjects;
@@ -70,7 +77,6 @@ namespace tutinoco
             defaultState = isON;
             if ( !collider ) collider = GetComponent<Collider>();
             UpdateObjects();
-            if (radioGroups.Length > 0) isDisabledDuringOn = true;
         }
 
         private void Update()
@@ -94,11 +100,11 @@ namespace tutinoco
         {
             for (int i=0; i < activeObjects.Length; i++) {
                 GameObject obj = activeObjects[i];
-                obj.SetActive(isON);
+                if( obj != null ) obj.SetActive(isON);
             }
             for (int i=0; i < disableObjects.Length; i++) {
                 GameObject obj = disableObjects[i];
-                obj.SetActive(!isON);
+                if( obj != null ) obj.SetActive(!isON);
             }
         }
 
@@ -130,8 +136,16 @@ namespace tutinoco
             NetworkEventTarget nwTarget = isGlobal ? NetworkEventTarget.All : NetworkEventTarget.Owner;
             SendCustomNetworkEvent(nwTarget, isON ? nameof(SyncON) : nameof(SyncOFF));
 
-            foreach (BenriSwitch obj in radioGroups) {
-                if ( obj != this && obj.isON ) {
+            foreach (BenriSwitch obj in links) {
+                if ( obj == this ) continue;
+                if ( linkType==BenriSwitchLinkType.Sync && isON!=obj.isON ) {
+                    string[] es = isON ? new string[]{"SyncON_event", "SyncON_silent"} : new string[]{"SyncOFF_event", "SyncOFF_silent"};
+                    foreach( string e in es ) {
+                        if( obj.isGlobal ) obj.SendCustomNetworkEvent(NetworkEventTarget.All, e);
+                        else obj.SendCustomEvent(e);
+                    }
+                }
+                if ( linkType==BenriSwitchLinkType.Radio && obj.isON ) {
                     foreach( string e in new string[] {"SyncOFF_event", "SyncOFF_silent"} ) {
                         if( obj.isGlobal ) obj.SendCustomNetworkEvent(NetworkEventTarget.All, e);
                         else obj.SendCustomEvent(e);
