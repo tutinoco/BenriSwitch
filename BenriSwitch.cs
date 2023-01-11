@@ -15,6 +15,7 @@ namespace tutinoco
 
     public enum BenriSwitchLinkType
     {
+        Manual,
         Sync,
         Radio,
     }
@@ -32,8 +33,8 @@ namespace tutinoco
 
         [Header("スイッチ切り替え時に鳴らす音を設定")]
         public AudioSource audioSource;
-        public AudioClip   onSound;
-        public AudioClip   offSound;
+        public AudioClip onSound;
+        public AudioClip offSound;
 
         [Header("押したスイッチが戻る時間を設定（0なら無効、2.0なら2秒後に戻ります）")]
         public float backTimer;
@@ -136,6 +137,11 @@ namespace tutinoco
             NetworkEventTarget nwTarget = isGlobal ? NetworkEventTarget.All : NetworkEventTarget.Owner;
             SendCustomNetworkEvent(nwTarget, isON ? nameof(SyncON) : nameof(SyncOFF));
 
+            UpdateLinks();
+        }
+
+        public void UpdateLinks()
+        {
             foreach (BenriSwitch obj in links) {
                 if ( obj == this ) continue;
                 if ( linkType==BenriSwitchLinkType.Sync && isON!=obj.isON ) {
