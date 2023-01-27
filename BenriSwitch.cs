@@ -15,7 +15,7 @@ namespace tutinoco
 
     public enum BenriSwitchLinkType
     {
-        Manual,
+        None,
         Sync,
         Radio,
     }
@@ -48,6 +48,7 @@ namespace tutinoco
         [Header("他スイッチとリンクして動作させる他のスイッチを登録")]
         public BenriSwitchLinkType linkType;
         public BenriSwitch[] links;
+        public bool disableAutoLink;
 
         [Header("スイッチON/OFF時に有効にするオブジェクトを登録")]
         public GameObject[] activeObjects;
@@ -130,14 +131,16 @@ namespace tutinoco
                 if (!flg) return;
             }
 
+            Networking.SetOwner(Networking.LocalPlayer, gameObject);
+
             isON = !isON;
             backTimerCount = defaultState==isON ? -1 : (int)(backTimer * 60);
 
-            Networking.SetOwner(Networking.LocalPlayer, this.gameObject);
-            NetworkEventTarget nwTarget = isGlobal ? NetworkEventTarget.All : NetworkEventTarget.Owner;
-            SendCustomNetworkEvent(nwTarget, isON ? nameof(SyncON) : nameof(SyncOFF));
+            string e = isON ? "SyncON" : "SyncOFF";
+            if( isGlobal ) SendCustomNetworkEvent(NetworkEventTarget.All, e);
+            else SendCustomEvent(e);
 
-            UpdateLinks();
+            if( !disableAutoLink ) UpdateLinks();
         }
 
         public void UpdateLinks()
@@ -163,21 +166,19 @@ namespace tutinoco
         public override void OnPickupUseUp()
         {
             if (type!=BenriSwitchType.Trigger || !isOffWhenReleased) return;
-            if (audioSource && offSound) audioSource.PlayOneShot(offSound);
             Switch();
         }
 
         public override void OnPickupUseDown()
         {
             if (type!=BenriSwitchType.Trigger) return;
-            if (audioSource && onSound) audioSource.PlayOneShot(onSound);
             Switch();
         }
 
         public override void OnPlayerJoined(VRCPlayerApi player)
         {
             if (!isGlobal || !Networking.IsMaster) return;
-            string e = isON ? nameof(SyncON_silent) : nameof(SyncOFF_silent);
+            string e = isON ? "SyncON_silent" : "SyncOFF_silent";
             SendCustomNetworkEvent(VRC.Udon.Common.Interfaces.NetworkEventTarget.All, e);
         }
 
