@@ -85,7 +85,7 @@ namespace tutinoco
         {
             if (backTimerCount >= 0) backTimerCount--;
             if (backTimerCount == 0) Switch();
-            if (isDisabledDuringOn) collider.enabled = !isON;
+            if (isDisabledDuringOn) DisableInteractive = isON;
 
             if ( type == BenriSwitchType.Area ) {
                 Vector3 playerPos = Networking.LocalPlayer.GetPosition();
