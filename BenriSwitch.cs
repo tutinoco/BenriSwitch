@@ -55,6 +55,7 @@ namespace tutinoco
         public GameObject[] disableObjects;
 
         [Header("スイッチON/OFFした瞬間に実行したいイベントを設定")]
+        public bool enabledJoinSyncEvent;
         public UdonSharpBehaviour onEventTarget;
         public string onEventName;
         public UdonSharpBehaviour offEventTarget;
@@ -85,7 +86,7 @@ namespace tutinoco
         {
             if (backTimerCount >= 0) backTimerCount--;
             if (backTimerCount == 0) Switch();
-            if (isDisabledDuringOn) DisableInteractive = isON;
+            if (isDisabledDuringOn) collider.enabled = !isON;
 
             if ( type == BenriSwitchType.Area ) {
                 Vector3 playerPos = Networking.LocalPlayer.GetPosition();
@@ -180,6 +181,11 @@ namespace tutinoco
             if (!isGlobal || !Networking.IsMaster) return;
             string e = isON ? "SyncON_silent" : "SyncOFF_silent";
             SendCustomNetworkEvent(VRC.Udon.Common.Interfaces.NetworkEventTarget.All, e);
+
+            if( enabledJoinSyncEvent ) {
+                e = isON ? "SyncON_event" : "SyncOFF_event";
+                SendCustomNetworkEvent(VRC.Udon.Common.Interfaces.NetworkEventTarget.All, e);
+            }
         }
 
         public void SyncON()
